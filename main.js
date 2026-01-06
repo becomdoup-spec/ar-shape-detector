@@ -1,27 +1,45 @@
 const video = document.getElementById("video");
 const canvas = document.getElementById("overlay");
 const ctx = canvas.getContext("2d");
+
 const startBtn = document.getElementById("startBtn");
 const ui = document.getElementById("ui");
 const statusBox = document.getElementById("status");
 
-let prevCx = 0, prevCy = 0;
-const SMOOTHING = 0.7;
+let cvReady = false;
 let running = false;
 
+let prevCx = 0, prevCy = 0;
+const SMOOTHING = 0.7;
+
+/* ------------------------------
+   OpenCV readiness gate
+--------------------------------*/
 cv.onRuntimeInitialized = () => {
-  statusBox.textContent = "OpenCV ready. Click Start.";
+  cvReady = true;
+  startBtn.disabled = false;
+  startBtn.textContent = "Start AR Camera";
+  statusBox.textContent = "Engine ready. Click Start.";
 };
 
-startBtn.onclick = () => {
-  statusBox.textContent = "Starting camera…";
+/* ------------------------------
+   User action → camera start
+--------------------------------*/
+startBtn.addEventListener("click", () => {
+  if (!cvReady) {
+    statusBox.textContent = "Engine not ready yet…";
+    return;
+  }
   startCamera();
-};
+});
 
 function startCamera() {
+  statusBox.textContent = "Requesting camera…";
+
   navigator.mediaDevices.getUserMedia({
     video: { facingMode: "environment" }
-  }).then(stream => {
+  })
+  .then(stream => {
     video.srcObject = stream;
     video.onloadedmetadata = () => {
       canvas.width = video.videoWidth;
@@ -35,28 +53,39 @@ function startCamera() {
       statusBox.textContent = "Detecting shapes…";
       requestAnimationFrame(processFrame);
     };
-  }).catch(err => {
-    statusBox.textContent = "Camera access denied";
+  })
+  .catch(err => {
     console.error(err);
+    statusBox.textContent = "Camera permission denied";
   });
 }
 
+/* ------------------------------
+   Main processing loop
+--------------------------------*/
 function processFrame() {
   if (!running) return;
 
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-  let src = cv.imread(canvas);
-  let gray = new cv.Mat();
-  let blur = new cv.Mat();
-  let edges = new cv.Mat();
-  let contours = new cv.MatVector();
-  let hierarchy = new cv.Mat();
+  const src = cv.imread(canvas);
+  const gray = new cv.Mat();
+  const blur = new cv.Mat();
+  const edges = new cv.Mat();
+  const contours = new cv.MatVector();
+  const hierarchy = new cv.Mat();
 
   cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
   cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
   cv.Canny(blur, edges, 80, 150);
-  cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+  cv.findContours(
+    edges,
+    contours,
+    hierarchy,
+    cv.RETR_EXTERNAL,
+    cv.CHAIN_APPROX_SIMPLE
+  );
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -88,7 +117,7 @@ function processFrame() {
     ctx.fillStyle = "rgba(0,0,0,0.65)";
     ctx.fillRect(cx - 60, cy - 45, 120, 26);
 
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = "#fff";
     ctx.font = "16px Arial";
     ctx.textAlign = "center";
     ctx.fillText(shape, cx, cy - 26);
