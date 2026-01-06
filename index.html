@@ -5,17 +5,27 @@
   <title>AR Shape Detector</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- OpenCV.js (browser WASM) -->
+  <!-- OpenCV.js -->
   <script async src="opencv.js"></script>
 
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <video id="video" autoplay playsinline muted></video>
+  <!-- Landing UI -->
+  <div id="ui">
+    <h1>AR Shape Detector</h1>
+    <p>Point your camera at simple objects<br>and see real-time shape detection.</p>
+    <button id="startBtn">Start AR Camera</button>
+    <div id="hint">Runs entirely in your browser</div>
+  </div>
+
+  <!-- Camera + AR overlay -->
+  <video id="video" playsinline muted></video>
   <canvas id="overlay"></canvas>
 
-  <div id="status">Initializing OpenCV…</div>
+  <!-- Status -->
+  <div id="status">Waiting for user action…</div>
 
   <script src="main.js"></script>
 </body>
