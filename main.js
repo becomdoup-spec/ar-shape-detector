@@ -6,41 +6,43 @@ const startBtn = document.getElementById("startBtn");
 const ui = document.getElementById("ui");
 const statusBox = document.getElementById("status");
 
-let cvReady = false;
 let running = false;
-
 let prevCx = 0, prevCy = 0;
 const SMOOTHING = 0.7;
 
-/* ------------------------------
-   OpenCV readiness gate
---------------------------------*/
-cv.onRuntimeInitialized = () => {
-  cvReady = true;
-  startBtn.disabled = false;
-  startBtn.textContent = "Start AR Camera";
-  statusBox.textContent = "Engine ready. Click Start.";
-};
-
-/* ------------------------------
-   User action → camera start
---------------------------------*/
-startBtn.addEventListener("click", () => {
-  if (!cvReady) {
-    statusBox.textContent = "Engine not ready yet…";
+function waitForCVReady() {
+  // If cv isn't defined yet, keep waiting.
+  if (typeof cv === "undefined" || !cv || !cv.Mat) {
+    statusBox.textContent = "Loading vision engine…";
+    setTimeout(waitForCVReady, 50);
     return;
   }
-  startCamera();
-});
 
-function startCamera() {
+  // If OpenCV needs runtime init, wait for it.
+  cv.onRuntimeInitialized = () => {
+    startBtn.disabled = false;
+    startBtn.textContent = "Start AR Camera";
+    statusBox.textContent = "Engine ready. Click Start.";
+  };
+
+  // Some builds may already be initialized; enable anyway after a short delay.
+  setTimeout(() => {
+    if (startBtn.disabled) {
+      startBtn.disabled = false;
+      startBtn.textContent = "Start AR Camera";
+      statusBox.textContent = "Engine ready. Click Start.";
+    }
+  }, 500);
+}
+
+startBtn.addEventListener("click", () => {
   statusBox.textContent = "Requesting camera…";
 
   navigator.mediaDevices.getUserMedia({
     video: { facingMode: "environment" }
-  })
-  .then(stream => {
+  }).then(stream => {
     video.srcObject = stream;
+
     video.onloadedmetadata = () => {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -53,21 +55,19 @@ function startCamera() {
       statusBox.textContent = "Detecting shapes…";
       requestAnimationFrame(processFrame);
     };
-  })
-  .catch(err => {
+  }).catch(err => {
     console.error(err);
-    statusBox.textContent = "Camera permission denied";
+    statusBox.textContent = "Camera permission denied / unavailable";
   });
-}
+});
 
-/* ------------------------------
-   Main processing loop
---------------------------------*/
 function processFrame() {
   if (!running) return;
 
+  // Draw current frame to canvas
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+  // Read canvas into OpenCV
   const src = cv.imread(canvas);
   const gray = new cv.Mat();
   const blur = new cv.Mat();
@@ -78,15 +78,9 @@ function processFrame() {
   cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
   cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
   cv.Canny(blur, edges, 80, 150);
+  cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-  cv.findContours(
-    edges,
-    contours,
-    hierarchy,
-    cv.RETR_EXTERNAL,
-    cv.CHAIN_APPROX_SIMPLE
-  );
-
+  // Clear overlay and draw results
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   for (let i = 0; i < contours.size(); i++) {
@@ -115,12 +109,12 @@ function processFrame() {
     ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
 
     ctx.fillStyle = "rgba(0,0,0,0.65)";
-    ctx.fillRect(cx - 60, cy - 45, 120, 26);
+    ctx.fillRect(cx - 70, cy - 50, 140, 28);
 
     ctx.fillStyle = "#fff";
     ctx.font = "16px Arial";
     ctx.textAlign = "center";
-    ctx.fillText(shape, cx, cy - 26);
+    ctx.fillText(shape, cx, cy - 30);
 
     approx.delete();
   }
@@ -134,3 +128,5 @@ function processFrame() {
 
   requestAnimationFrame(processFrame);
 }
+
+waitForCVReady();
