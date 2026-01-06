@@ -1,15 +1,22 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <title>AR Shape Detector</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- OpenCV.js (browser WASM) -->
   <script async src="opencv.js"></script>
-  <link rel="stylesheet" href="style.css">
+
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <video id="video" autoplay playsinline></video>
+
+  <video id="video" autoplay playsinline muted></video>
   <canvas id="overlay"></canvas>
+
+  <div id="status">Initializing OpenCV…</div>
+
   <script src="main.js"></script>
 </body>
 </html>
