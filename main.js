@@ -1,14 +1,20 @@
 const video = document.getElementById("video");
 const canvas = document.getElementById("overlay");
 const ctx = canvas.getContext("2d");
+const startBtn = document.getElementById("startBtn");
+const ui = document.getElementById("ui");
 const statusBox = document.getElementById("status");
 
 let prevCx = 0, prevCy = 0;
 const SMOOTHING = 0.7;
+let running = false;
 
-// OpenCV entry point
 cv.onRuntimeInitialized = () => {
-  statusBox.textContent = "OpenCV loaded. Starting camera…";
+  statusBox.textContent = "OpenCV ready. Click Start.";
+};
+
+startBtn.onclick = () => {
+  statusBox.textContent = "Starting camera…";
   startCamera();
 };
 
@@ -20,16 +26,24 @@ function startCamera() {
     video.onloadedmetadata = () => {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      statusBox.textContent = "Camera running. Detecting shapes…";
+
+      ui.style.display = "none";
+      video.style.display = "block";
+      canvas.style.display = "block";
+
+      running = true;
+      statusBox.textContent = "Detecting shapes…";
       requestAnimationFrame(processFrame);
     };
   }).catch(err => {
-    statusBox.textContent = "Camera error";
+    statusBox.textContent = "Camera access denied";
     console.error(err);
   });
 }
 
 function processFrame() {
+  if (!running) return;
+
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
   let src = cv.imread(canvas);
@@ -42,22 +56,13 @@ function processFrame() {
   cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
   cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
   cv.Canny(blur, edges, 80, 150);
-
-  cv.findContours(
-    edges,
-    contours,
-    hierarchy,
-    cv.RETR_EXTERNAL,
-    cv.CHAIN_APPROX_SIMPLE
-  );
+  cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   for (let i = 0; i < contours.size(); i++) {
     const cnt = contours.get(i);
-    const area = cv.contourArea(cnt);
-
-    if (area < 3000) continue; // noise filter
+    if (cv.contourArea(cnt) < 3000) continue;
 
     const approx = new cv.Mat();
     cv.approxPolyDP(cnt, approx, 0.04 * cv.arcLength(cnt, true), true);
@@ -68,8 +73,6 @@ function processFrame() {
     else if (approx.rows > 6) shape = "Circle";
 
     const rect = cv.boundingRect(cnt);
-
-    // centroid
     const cxRaw = rect.x + rect.width / 2;
     const cyRaw = rect.y + rect.height / 2;
 
@@ -78,16 +81,14 @@ function processFrame() {
     prevCx = cx;
     prevCy = cy;
 
-    // bounding box
-    ctx.strokeStyle = "lime";
+    ctx.strokeStyle = "#00ff88";
     ctx.lineWidth = 2;
     ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
 
-    // AR-style label
     ctx.fillStyle = "rgba(0,0,0,0.65)";
     ctx.fillRect(cx - 60, cy - 45, 120, 26);
 
-    ctx.fillStyle = "white";
+    ctx.fillStyle = "#ffffff";
     ctx.font = "16px Arial";
     ctx.textAlign = "center";
     ctx.fillText(shape, cx, cy - 26);
