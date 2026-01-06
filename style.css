@@ -42,8 +42,9 @@ html, body {
   font-weight: 600;
 }
 
-#startBtn:hover {
-  opacity: 0.9;
+#startBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 #hint {
@@ -52,12 +53,22 @@ html, body {
   opacity: 0.5;
 }
 
-/* Camera + overlay */
-video, canvas {
+/* Camera and overlay */
+#video, #overlay {
   position: absolute;
   inset: 0;
   width: 100vw;
   height: 100vh;
+  display: none; /* enabled after Start */
+}
+
+#overlay {
+  pointer-events: none;
+  background: transparent;
+}
+
+/* Hidden processing canvas */
+#proc {
   display: none;
 }
 
